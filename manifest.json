@@ -1,0 +1,28 @@
+{
+  "name": "BizReceipt Pro - Payment Manager",
+  "short_name": "BizReceipt",
+  "description": "Multi-company payment receipt, expense tracker & ledger",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#1a237e",
+  "theme_color": "#1a237e",
+  "orientation": "portrait-primary",
+  "lang": "en-IN",
+  "dir": "ltr",
+  "categories": ["business", "finance", "productivity"],
+  "screenshots": [],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "New Receipt",  "short_name": "Receipt", "url": "./index.html?page=form",    "icons": [{"src":"icon-192.png","sizes":"192x192"}] },
+    { "name": "Add Expense",  "short_name": "Expense", "url": "./index.html?page=debit",   "icons": [{"src":"icon-192.png","sizes":"192x192"}] },
+    { "name": "View Ledger",  "short_name": "Ledger",  "url": "./index.html?page=ledger",  "icons": [{"src":"icon-192.png","sizes":"192x192"}] }
+  ],
+  "prefer_related_applications": false
+}
