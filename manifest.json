@@ -1,6 +1,6 @@
 {
-  "name": "BizReceipt Pro - Payment Manager",
-  "short_name": "BizReceipt",
+  "name": "Jama Masjid",
+  "short_name": "Jama Masjid",
   "description": "Multi-company payment receipt, expense tracker & ledger",
   "start_url": "./index.html",
   "scope": "./",

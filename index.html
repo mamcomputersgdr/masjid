@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#1a237e">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="BizReceipt">
+<meta name="apple-mobile-web-app-title" content="Jama Masjid">
 <link rel="manifest" href="manifest.json">
-<title>BizReceipt Pro</title>
+<title>Jama Masjid</title>
 <style>
 :root{--p:#1a237e;--pl:#3949ab;--a:#00acc1;--g:#43a047;--r:#e53935;--o:#fb8c00;--bg:#f0f4ff;--card:#fff;--t:#1a1a2e;--m:#6b7280;--b:#e0e7ff;--sh:0 2px 12px rgba(26,35,126,.1);--rad:14px;--rs:8px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -179,7 +179,7 @@ canvas{display:none}
 <div id="login-screen">
   <div class="lbox">
     <span class="icon">🧾</span>
-    <h1 id="l-title">BizReceipt Pro</h1>
+    <h1 id="l-title">Jama Masjid</h1>
     <p id="l-sub">Sign in to continue</p>
     <div class="fg"><label>Username</label><input id="lu" type="text" placeholder="Username" autocomplete="username"></div>
     <div class="fg"><label>Password</label><input id="lp" type="password" placeholder="Password" autocomplete="current-password"></div>
@@ -1456,7 +1456,7 @@ function clearAll(){
 // Uses Google Identity Services + Drive REST API
 // ═══════════════════════════════════════
 
-const DRIVE_FILE_NAME = 'BizReceipt_AutoBackup.json';
+const DRIVE_FILE_NAME = 'JamaMasjid_AutoBackup.json';
 const DRIVE_MIME      = 'application/json';
 const DRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file';
 
@@ -1682,7 +1682,7 @@ function triggerAutoBackup(){
 function driveDownload(){
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([getBackupPayload()],{type:'application/json'}));
-  a.download = 'BizReceipt_Backup_' + new Date().toISOString().split('T')[0] + '.json';
+  a.download = 'JamaMasjid_Backup_' + new Date().toISOString().split('T')[0] + '.json';
   a.click();
   showToast('📥 Backup downloaded!');
 }
