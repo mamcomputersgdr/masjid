@@ -93,6 +93,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--pl)}
 .hitem{background:var(--card);border-radius:var(--rs);padding:11px 12px;margin-bottom:8px;box-shadow:var(--sh);cursor:pointer;border-left:4px solid var(--pl);transition:box-shadow .15s}
 .hitem.debit{border-left-color:var(--r)}
 .hitem.partial{border-left-color:var(--o)}
+.due-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:800;background:#ffebee;color:#c62828}
+.due-badge.overdue{background:#fff3e0;color:#e65100}
 .hn{font-weight:700;font-size:.92rem}
 .hm{font-size:.76rem;color:var(--m);margin-top:2px}
 .ha{font-weight:800;font-size:.98rem}
@@ -178,7 +180,8 @@ canvas{display:none}
 <!-- ══════════════ LOGIN ══════════════ -->
 <div id="login-screen">
   <div class="lbox">
-    <span class="icon">🧾</span>
+    <span class="icon" id="login-icon-emoji">🧾</span>
+    <img id="login-icon-img" src="" class="hidden" style="width:64px;height:64px;border-radius:16px;display:block;margin:0 auto 6px;object-fit:cover">
     <h1 id="l-title">Jama Masjid</h1>
     <p id="l-sub">Sign in to continue</p>
     <div class="fg"><label>Username</label><input id="lu" type="text" placeholder="Username" autocomplete="username"></div>
@@ -204,6 +207,7 @@ canvas{display:none}
   <div class="tabs">
     <button class="tbb active" id="tab-form"    onclick="showPage('form')">📋 Receipt</button>
     <button class="tbb"        id="tab-debit"   onclick="showPage('debit')">💸 Debit</button>
+    <button class="tbb"        id="tab-dues"    onclick="showPage('dues')">⏰ Dues <span id="dues-badge" style="display:inline-block;background:var(--r);color:#fff;border-radius:10px;padding:0 6px;font-size:.65rem;margin-left:3px"></span></button>
     <button class="tbb"        id="tab-history" onclick="showPage('history')">🗂️ History</button>
     <button class="tbb"        id="tab-ledger"  onclick="showPage('ledger')">📒 Ledger</button>
     <button class="tbb"        id="tab-admin"   onclick="showPage('admin')">⚙️ Admin</button>
@@ -351,6 +355,20 @@ canvas{display:none}
     </div>
   </div>
 
+  <!-- ══ DUES PAGE — overdue/pending payments ══ -->
+  <div class="page" id="page-dues">
+    <div class="sgrid" id="dues-stats"></div>
+    <div class="sbar">
+      <input id="dues-srch" placeholder="🔍 Search name, mobile..." oninput="renderDues()">
+      <select id="dues-filter" onchange="renderDues()" style="width:auto;padding:8px 10px">
+        <option value="all">All Dues</option>
+        <option value="receipt">Receipt Pending</option>
+        <option value="debit">Unpaid Expenses</option>
+      </select>
+    </div>
+    <div id="dues-list"></div>
+  </div>
+
   <!-- ══ HISTORY PAGE ══ -->
   <div class="page" id="page-history">
     <div class="sbar">
@@ -382,6 +400,8 @@ canvas{display:none}
       <button class="stab"        onclick="showSub('acontacts')">📒 Contacts</button>
       <button class="stab"        onclick="showSub('aservices')">🔧 Services</button>
       <button class="stab"        onclick="showSub('atemplates')">🎨 Templates</button>
+      <button class="stab"        onclick="showSub('aicon')">🖼️ App Icon</button>
+      <button class="stab"        onclick="showSub('aimport')">📥 Import Data</button>
       <button class="stab"        onclick="showSub('adrive')">☁️ Drive</button>
       <button class="stab"        onclick="showSub('asecurity')">🔐 Security</button>
     </div>
@@ -476,6 +496,60 @@ canvas{display:none}
           <button class="btn bg" onclick="adminSaveCustom()">💾 Save as My Custom Template</button>
           <button class="btn bo" onclick="adminResetTpl()">🔄 Reset to Original</button>
         </div>
+      </div>
+    </div>
+
+    <!-- APP ICON -->
+    <div id="aicon" class="hidden">
+      <div class="card">
+        <div class="ct">🖼️ App Icon / Logo</div>
+        <p style="font-size:.82rem;color:var(--m);margin-bottom:14px;line-height:1.6">
+          Upload a custom logo to replace the default app icon. This shows on the home screen icon, login screen, and in the browser tab. Recommended: square image, at least 512×512px, under 1MB.
+        </p>
+        <div style="text-align:center;margin-bottom:14px">
+          <img id="icon-preview" src="icon-512.png" style="width:100px;height:100px;border-radius:20px;box-shadow:var(--sh);object-fit:cover">
+        </div>
+        <div class="fg">
+          <label>Choose Image File</label>
+          <input type="file" id="icon-upload" accept="image/png,image/jpeg,image/webp" onchange="previewIconUpload(this)">
+        </div>
+        <div style="display:grid;gap:8px;margin-top:8px">
+          <button class="btn bg" onclick="saveCustomIcon()">💾 Save as App Icon</button>
+          <button class="btn bo" onclick="resetToDefaultIcon()">🔄 Reset to Default Icon</button>
+        </div>
+        <p style="font-size:.76rem;color:var(--m);margin-top:10px;line-height:1.5">
+          <strong>Note:</strong> This changes the icon shown <em>inside</em> the app (login screen, browser tab). To also change the <strong>home screen / APK icon</strong>, you'll need to replace <code>icon-192.png</code> and <code>icon-512.png</code> files on GitHub directly, since those are baked into the installed app package.
+        </p>
+      </div>
+    </div>
+
+    <!-- IMPORT HISTORICAL DATA -->
+    <div id="aimport" class="hidden">
+      <div class="card">
+        <div class="ct">📥 Import Past Records (Jan 2025 → Now)</div>
+        <p style="font-size:.82rem;color:var(--m);margin-bottom:12px;line-height:1.6">
+          Upload your existing customer rent records as a CSV file. Each row becomes one receipt — already marked as Paid or Pending based on what you enter.
+        </p>
+        <div style="display:grid;gap:7px;margin-bottom:12px">
+          <button class="btn bo" onclick="downloadImportTemplate()">📄 Download CSV Template</button>
+        </div>
+        <div class="fg">
+          <label>Upload Filled CSV File</label>
+          <input type="file" id="import-csv-file" accept=".csv" onchange="previewImportCSV(this)">
+        </div>
+        <div id="import-preview-box" class="hidden">
+          <div class="ct" style="margin-top:10px">📋 Preview <span id="import-count" style="font-weight:400;color:var(--m)"></span></div>
+          <div id="import-preview-list" style="max-height:240px;overflow-y:auto;margin-bottom:10px"></div>
+          <button class="btn bg" onclick="confirmImportCSV()">✅ Import All These Records</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ct">ℹ️ CSV Format Required</div>
+        <p style="font-size:.78rem;color:var(--m);line-height:1.6">
+          Columns (in order): <strong>Customer Name, Mobile, Service/Room, Amount, Date (YYYY-MM-DD), Status (Paid/Pending), Payment Method</strong><br><br>
+          Example row:<br>
+          <code style="background:#f0f4ff;padding:2px 6px;border-radius:4px">Rahul Kumar, 9876543210, Room Rent, 1500, 2025-01-15, Paid, Cash</code>
+        </p>
       </div>
     </div>
 
@@ -636,6 +710,40 @@ canvas{display:none}
 <canvas id="cvs"></canvas>
 <div class="toast" id="toast"></div>
 
+<!-- CLEAR DUE / MARK PAID MODAL -->
+<div class="moverlay" id="clear-modal">
+  <div class="modal">
+    <div class="mtitle"><span>✅ Mark Payment Received</span><button class="xbtn" onclick="closeModal('clear-modal')">✕</button></div>
+    <div class="card" style="margin-bottom:12px;background:#f0f4ff">
+      <div class="srow"><span>Customer/Payee</span><span class="fw7" id="clear-name">—</span></div>
+      <div class="srow"><span>Amount Due</span><span class="fw7 tr" id="clear-amount">—</span></div>
+      <div class="srow"><span>Pending Since</span><span class="fw7 tm" id="clear-pending-since">—</span></div>
+    </div>
+    <div class="fg"><label>Date Payment Received *</label><input type="date" id="clear-paid-date"></div>
+    <div class="fg"><label>Payment Method</label>
+      <select id="clear-method">
+        <option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Cheque</option><option>Card</option>
+      </select>
+    </div>
+    <p style="font-size:.78rem;color:var(--m);margin-bottom:10px;line-height:1.5">This keeps a record of how many days the payment was pending, for your history and reports.</p>
+    <button class="btn bg" onclick="confirmClearDue()">✅ Confirm Payment Received</button>
+  </div>
+</div>
+
+<!-- DUE REMINDER MODAL -->
+<div class="moverlay" id="reminder-modal">
+  <div class="modal">
+    <div class="mtitle"><span>⏰ Payment Reminder</span><button class="xbtn" onclick="closeModal('reminder-modal')">✕</button></div>
+    <div class="tpl-preview-box" id="reminder-preview" style="margin-bottom:10px"></div>
+    <div class="sgridc">
+      <div class="si" onclick="reminderWA()"><span class="em">💬</span>WhatsApp</div>
+      <div class="si" onclick="reminderSMS()"><span class="em">💌</span>SMS</div>
+      <div class="si" onclick="reminderCopy()"><span class="em">📝</span>Copy</div>
+      <div class="si" onclick="reminderCall()"><span class="em">📞</span>Call</div>
+    </div>
+  </div>
+</div>
+
 <!-- CONTACT EDIT MODAL -->
 <div class="moverlay" id="ct-edit-modal">
   <div class="modal">
@@ -728,6 +836,7 @@ function save()    { S('mam_receipts',r=>receipts); S('mam_receipts',receipts); 
 // ═══════════════════════════════════════
 document.getElementById('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 document.getElementById('lu').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+applyCustomIcon(); // show custom icon on login screen immediately if set
 
 function doLogin() {
   const u=document.getElementById('lu').value.trim(), p=document.getElementById('lp').value;
@@ -761,6 +870,8 @@ function initApp() {
   });
   // update backup display
   updateBackupCount();
+  updateDuesBadge();
+  applyCustomIcon();
   fillFormFromCo();
   // Try auto-reconnect Google Drive if was previously connected
   setTimeout(tryAutoReconnectDrive, 1500);
@@ -796,6 +907,57 @@ function applyCoTheme() {
   document.getElementById('l-title').textContent = co.name;
   document.documentElement.style.setProperty('--p', co.color);
   document.documentElement.style.setProperty('--chip-active', co.color);
+}
+
+// ═══════════════════════════════════════
+// CUSTOM APP ICON (login screen, browser tab, favicon)
+// ═══════════════════════════════════════
+function applyCustomIcon(){
+  const dataUrl = J('mam_custom_icon', null);
+  const emojiEl = document.getElementById('login-icon-emoji');
+  const imgEl   = document.getElementById('login-icon-img');
+  const previewEl = document.getElementById('icon-preview');
+  if(dataUrl){
+    if(emojiEl) emojiEl.classList.add('hidden');
+    if(imgEl){ imgEl.src=dataUrl; imgEl.classList.remove('hidden'); }
+    if(previewEl) previewEl.src=dataUrl;
+    setFavicon(dataUrl);
+  } else {
+    if(emojiEl) emojiEl.classList.remove('hidden');
+    if(imgEl) imgEl.classList.add('hidden');
+  }
+}
+function setFavicon(dataUrl){
+  let link = document.querySelector('link[rel="icon"]');
+  if(!link){ link=document.createElement('link'); link.rel='icon'; document.head.appendChild(link); }
+  link.href = dataUrl;
+  let appleLink = document.querySelector('link[rel="apple-touch-icon"]');
+  if(!appleLink){ appleLink=document.createElement('link'); appleLink.rel='apple-touch-icon'; document.head.appendChild(appleLink); }
+  appleLink.href = dataUrl;
+}
+function previewIconUpload(input){
+  const file = input.files[0]; if(!file) return;
+  if(file.size > 1024*1024){ showToast('⚠️ Image too large, please use under 1MB'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('icon-preview').src = e.target.result;
+    window._pendingIconDataUrl = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function saveCustomIcon(){
+  if(!window._pendingIconDataUrl){ showToast('⚠️ Choose an image first'); return; }
+  S('mam_custom_icon', window._pendingIconDataUrl);
+  applyCustomIcon();
+  showToast('✅ App icon updated!');
+}
+function resetToDefaultIcon(){
+  if(!confirm('Reset to the default app icon?')) return;
+  localStorage.removeItem('mam_custom_icon');
+  document.getElementById('icon-preview').src = 'icon-512.png';
+  window._pendingIconDataUrl = null;
+  applyCustomIcon();
+  showToast('🔄 Reset to default icon');
 }
 
 function fillFormFromCo() {
@@ -892,19 +1054,21 @@ function showPage(p) {
   const t=document.getElementById('tab-'+p); if(t) t.classList.add('active');
   if(p==='history') renderHistory();
   if(p==='ledger')  renderLedger();
+  if(p==='dues')    renderDues();
   if(p==='admin')   { renderAdmin(); loadAdminUI(); }
 }
 function showSub(s) {
-  ['astats','acompany','acontacts','aservices','atemplates','adrive','asecurity'].forEach(id=>{
+  ['astats','acompany','acontacts','aservices','atemplates','aicon','aimport','adrive','asecurity'].forEach(id=>{
     document.getElementById(id).classList.toggle('hidden',id!==s);
   });
   document.querySelectorAll('.stab').forEach((b,i)=>{
-    b.classList.toggle('active',['astats','acompany','acontacts','aservices','atemplates','adrive','asecurity'][i]===s);
+    b.classList.toggle('active',['astats','acompany','acontacts','aservices','atemplates','aicon','aimport','adrive','asecurity'][i]===s);
   });
   if(s==='acompany')  renderCoList();
   if(s==='acontacts') renderContacts();
   if(s==='aservices') renderServices();
   if(s==='atemplates') initAdminTemplates();
+  if(s==='aicon') { const saved=J('mam_custom_icon',null); if(saved) document.getElementById('icon-preview').src=saved; }
   if(s==='asecurity') document.getElementById('show-user').textContent=creds.username;
 }
 
@@ -976,7 +1140,7 @@ function genReceipt() {
   if(sm) t+=ctr(sm,W)+'\n';
   if(se) t+=ctr(se,W)+'\n';
   if(sa) t+=ctr(sa,W)+'\n';
-  t+=D+'\n'+ctr('PAYMENT RECEIPT',W)+'\n'+L+'\n';
+  t+=D+'\n'+ctr(pm==='Pending'?'PAYMENT DUE NOTICE':'PAYMENT RECEIPT',W)+'\n'+L+'\n';
   t+='Receipt No : '+rn+'\n';
   t+='Date       : '+dateStr+'  '+rt+'\n'+L+'\n';
   t+='CUSTOMER DETAILS\n';
@@ -992,7 +1156,12 @@ function genReceipt() {
   if(pm==='UPI'&&ut)    t+='UPI Txn ID : '+ut+'\n';
   if(pm==='Cheque'&&cn2) t+='Cheque No  : '+cn2+'\n';
   t+=L+'\n';
-  t+='AMOUNT PAID : ₹'+am.toFixed(2)+'\n'+L+'\n';
+  if(pm==='Pending'){
+    t+='AMOUNT DUE  : ₹'+am.toFixed(2)+'\n'+L+'\n';
+    t+='⚠️ PAYMENT NOT YET RECEIVED\n'+L+'\n';
+  } else {
+    t+='AMOUNT PAID : ₹'+am.toFixed(2)+'\n'+L+'\n';
+  }
   if(bs!=='No Balance'){
     t+='PREV BALANCE : '+bs.toUpperCase()+'\n';
     if(bs==='Has Pending'){
@@ -1002,7 +1171,7 @@ function genReceipt() {
     }
     t+=L+'\n';
   }
-  t+=ctr(co.footer||'Thank you!',W)+'\n'+D+'\n';
+  t+=ctr(pm==='Pending'?'Kindly clear the due amount at the earliest.':(co.footer||'Thank you!'),W)+'\n'+D+'\n';
   curReceipt={
     id:Date.now().toString(), coId:activeCo, coName:sn, receiptNo:rn,
     shopName:sn,shopMobile:sm,shopAddress:sa,shopEmail:se,
@@ -1029,6 +1198,7 @@ function saveReceipt() {
   recSettings.next++; S('mam_recset',recSettings);
   showToast('✅ Receipt saved!');
   if(backupMeta.auto) triggerAutoBackup();
+  updateDuesBadge();
 }
 
 // ═══════════════════════════════════════
@@ -1057,6 +1227,7 @@ function saveDebit() {
   debits.unshift(d); S('mam_debits',debits);
   showToast('✅ Expense saved!');
   if(backupMeta.auto) triggerAutoBackup();
+  updateDuesBadge();
   resetDebit();
 }
 function resetDebit() {
@@ -1163,15 +1334,23 @@ function renderLedger() {
   receipts=J('mam_receipts',[]); debits=J('mam_debits',[]);
   const q=(document.getElementById('led-srch').value||'').toLowerCase();
   const f=document.getElementById('led-filter').value;
-  const totalIncome=receipts.reduce((s,r)=>s+parseFloat(r.amount||0),0);
-  const totalDebit=debits.reduce((s,d)=>s+parseFloat(d.amount||0),0);
-  const totalPaid=debits.filter(d=>d.status==='Paid').reduce((s,d)=>s+parseFloat(d.amount||0),0);
-  const totalUnpaid=debits.filter(d=>d.status!=='Paid').reduce((s,d)=>s+parseFloat(d.amount||0),0);
+  // Only count ACTUALLY COLLECTED income (exclude Pending receipts)
+  const collectedReceipts = receipts.filter(r=>r.paymentMethod!=='Pending');
+  const pendingReceipts   = receipts.filter(r=>r.paymentMethod==='Pending');
+  const totalIncome   = collectedReceipts.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  const totalReceiptDue = pendingReceipts.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  const totalDebit    = debits.reduce((s,d)=>s+parseFloat(d.amount||0),0);
+  const totalDebitPaid   = debits.filter(d=>d.status==='Paid').reduce((s,d)=>s+parseFloat(d.amount||0),0);
+  const totalDebitUnpaid = debits.reduce((s,d)=>{
+    const remaining = d.status==='Partial' ? (parseFloat(d.amount||0)-parseFloat(d.amountPaid||0)) : (d.status==='Unpaid'?parseFloat(d.amount||0):0);
+    return s+remaining;
+  },0);
+  const netBalance = totalIncome - totalDebitPaid; // only money actually in hand
   document.getElementById('led-stats').innerHTML=`
-    <div class="scard sgrn"><div class="sv">₹${totalIncome.toLocaleString('en-IN',{maximumFractionDigits:0})}</div><div class="sl">Total Income</div></div>
+    <div class="scard sgrn"><div class="sv">₹${totalIncome.toLocaleString('en-IN',{maximumFractionDigits:0})}</div><div class="sl">Income Collected</div></div>
     <div class="scard sred"><div class="sv">₹${totalDebit.toLocaleString('en-IN',{maximumFractionDigits:0})}</div><div class="sl">Total Expenses</div></div>
-    <div class="scard sblue"><div class="sv">₹${(totalIncome-totalPaid).toLocaleString('en-IN',{maximumFractionDigits:0})}</div><div class="sl">Net Balance</div></div>
-    <div class="scard sorg"><div class="sv">₹${totalUnpaid.toLocaleString('en-IN',{maximumFractionDigits:0})}</div><div class="sl">Unpaid Dues</div></div>`;
+    <div class="scard sblue"><div class="sv">₹${netBalance.toLocaleString('en-IN',{maximumFractionDigits:0})}</div><div class="sl">Net Balance (Actual)</div></div>
+    <div class="scard sorg"><div class="sv">₹${(totalReceiptDue+totalDebitUnpaid).toLocaleString('en-IN',{maximumFractionDigits:0})}</div><div class="sl">Total Pending Dues</div></div>`;
   // merge + sort
   let items=[
     ...receipts.map(r=>({...r,_type:'credit',_date:r.receiptDate,_label:r.custName,_sub:r.serviceType,_amt:parseFloat(r.amount||0)})),
@@ -1185,13 +1364,19 @@ function renderLedger() {
   el.innerHTML=items.map(x=>{
     if(x._type==='credit'){
       const idx=receipts.findIndex(r=>r.id===x.id);
-      return `<div class="hitem" onclick="viewReceipt(${idx})">
+      const isPending = x.paymentMethod==='Pending';
+      const days = isPending ? daysSince(x._date) : 0;
+      return `<div class="hitem ${isPending?'partial':''}" onclick="viewReceipt(${idx})">
         <div style="display:flex;justify-content:space-between">
-          <div class="hn">📥 ${x._label}</div>
-          <div class="ha credit">+₹${x._amt.toFixed(2)}</div>
+          <div class="hn">${isPending?'⏳':'📥'} ${x._label}</div>
+          <div class="ha ${isPending?'debit':'credit'}">${isPending?'':'+'}₹${x._amt.toFixed(2)}</div>
         </div>
         <div class="hm">${x._date} · ${x._sub} · ${x.receiptNo}</div>
-        <div class="hm mt8"><span class="tag">Income</span><span class="badge bc">${x.paymentMethod}</span></div>
+        <div class="hm mt8">
+          <span class="tag" style="${isPending?'background:#fff3e0;color:#e65100':''}">${isPending?'Pending':'Income'}</span>
+          <span class="badge bc">${x.paymentMethod}</span>
+          ${isPending?`<span class="due-badge">${days} days pending</span>`:''}
+        </div>
       </div>`;
     } else {
       const idx=debits.findIndex(d=>d.id===x.id);
@@ -1206,6 +1391,197 @@ function renderLedger() {
       </div>`;
     }
   }).join('');
+}
+
+// ═══════════════════════════════════════
+// DUES — tracks unpaid/pending receipts & expenses
+// ═══════════════════════════════════════
+let curReminderData = null;
+
+function daysSince(dateStr){
+  if(!dateStr) return 0;
+  const d1 = new Date(dateStr), d2 = new Date();
+  return Math.floor((d2-d1)/(1000*60*60*24));
+}
+
+function getAllDues(){
+  receipts=J('mam_receipts',[]); debits=J('mam_debits',[]);
+  const receiptDues = receipts
+    .filter(r => r.paymentMethod==='Pending' || r.balanceStatus==='Has Pending')
+    .map(r => ({
+      _type:'receipt', _id:r.id,
+      _name:r.custName, _mobile:r.custMobile, _email:r.custEmail,
+      _amount: r.paymentMethod==='Pending' ? parseFloat(r.amount||0) : parseFloat(r.pendingAmount||0),
+      _date:r.receiptDate, _service:r.serviceType, _receiptNo:r.receiptNo,
+      _months:r.selectedMonths||[], _ref:r
+    }))
+    .filter(x=>x._amount>0);
+  const debitDues = debits
+    .filter(d => d.status!=='Paid')
+    .map(d => ({
+      _type:'debit', _id:d.id,
+      _name:d.payee, _mobile:d.mobile, _email:'',
+      _amount: d.status==='Partial' ? (parseFloat(d.amount||0)-parseFloat(d.amountPaid||0)) : parseFloat(d.amount||0),
+      _date:d.date, _service:d.category, _receiptNo:'',
+      _months:[], _ref:d
+    }))
+    .filter(x=>x._amount>0);
+  return [...receiptDues, ...debitDues].sort((a,b)=>new Date(a._date)-new Date(b._date));
+}
+
+function updateDuesBadge(){
+  const badge = document.getElementById('dues-badge');
+  if(!badge) return;
+  const count = getAllDues().length;
+  badge.textContent = count>0 ? count : '';
+  badge.style.display = count>0 ? 'inline-block' : 'none';
+}
+
+function renderDues(){
+  const all = getAllDues();
+  updateDuesBadge();
+  const q = (document.getElementById('dues-srch').value||'').toLowerCase();
+  const f = document.getElementById('dues-filter').value;
+  let items = all;
+  if(f==='receipt') items = items.filter(x=>x._type==='receipt');
+  if(f==='debit')   items = items.filter(x=>x._type==='debit');
+  if(q) items = items.filter(x=>(x._name||'').toLowerCase().includes(q)||(x._mobile||'').includes(q));
+
+  const totalDue = all.reduce((s,x)=>s+x._amount,0);
+  const receiptDueTotal = all.filter(x=>x._type==='receipt').reduce((s,x)=>s+x._amount,0);
+  const debitDueTotal = all.filter(x=>x._type==='debit').reduce((s,x)=>s+x._amount,0);
+  const overdueCount = all.filter(x=>daysSince(x._date)>30).length;
+
+  document.getElementById('dues-stats').innerHTML = `
+    <div class="scard sred"><div class="sv">₹${totalDue.toLocaleString('en-IN',{maximumFractionDigits:0})}</div><div class="sl">Total Due</div></div>
+    <div class="scard sorg"><div class="sv">${all.length}</div><div class="sl">Pending Entries</div></div>
+    <div class="scard sblue"><div class="sv">₹${receiptDueTotal.toLocaleString('en-IN',{maximumFractionDigits:0})}</div><div class="sl">Receipts Due</div></div>
+    <div class="scard spurp"><div class="sv">${overdueCount}</div><div class="sl">Overdue 30+ days</div></div>`;
+
+  const el = document.getElementById('dues-list');
+  if(!items.length){
+    el.innerHTML = `<div class="empty"><div class="ei">✅</div><p>${all.length?'No dues match your search.':'No pending dues! Everyone is paid up.'}</p></div>`;
+    return;
+  }
+  el.innerHTML = items.map((x,i)=>{
+    const days = daysSince(x._date);
+    const overdue = days>30;
+    const badge = overdue ? `<span class="due-badge overdue">⚠️ ${days} days overdue</span>` : `<span class="due-badge">⏳ ${days} days pending</span>`;
+    const typeTag = x._type==='receipt' ? '<span class="tag">Receipt Due</span>' : '<span class="tag" style="background:#ffebee;color:#c62828">Expense Due</span>';
+    return `<div class="hitem ${overdue?'debit':'partial'}">
+      <div style="display:flex;justify-content:space-between">
+        <div class="hn">${x._name||'Unknown'}</div>
+        <div class="ha debit">₹${x._amount.toFixed(2)}</div>
+      </div>
+      <div class="hm">${x._date||'—'} · ${x._service||''} ${x._receiptNo?'· '+x._receiptNo:''}</div>
+      <div class="hm mt8">${typeTag} ${badge} ${x._mobile?' 📞 '+x._mobile:''}</div>
+      <div class="grow2 mt8">
+        <button class="btn bxs bo" onclick="openReminder(${JSON.stringify(JSON.stringify(x)).replace(/"/g,'&quot;')})">⏰ Send Reminder</button>
+        <button class="btn bxs bg" onclick="markDueCleared('${x._type}','${x._id}')">✅ Mark Cleared</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Mark Due as Paid — preserves full history (created date, paid date, days pending) ──
+let curClearData = null;
+
+function markDueCleared(type, id){
+  const all = getAllDues();
+  const item = all.find(x=>x._type===type && x._id===id);
+  if(!item) return;
+  curClearData = {type, id, item};
+  const days = daysSince(item._date);
+  document.getElementById('clear-name').textContent = item._name || 'Unknown';
+  document.getElementById('clear-amount').textContent = '₹'+item._amount.toFixed(2);
+  document.getElementById('clear-pending-since').textContent = (item._date||'—') + ' (' + days + ' days ago)';
+  document.getElementById('clear-paid-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('clear-method').value = 'Cash';
+  openModal('clear-modal');
+}
+
+function confirmClearDue(){
+  if(!curClearData) return;
+  const {type, id, item} = curClearData;
+  const paidDate = document.getElementById('clear-paid-date').value;
+  const paidMethod = document.getElementById('clear-method').value;
+  const daysPending = daysSince(item._date);
+
+  if(type==='receipt'){
+    const idx = receipts.findIndex(r=>r.id===id);
+    if(idx>=0){
+      // Preserve the original creation/due date, record when it was actually paid
+      receipts[idx].paymentMethod   = paidMethod;
+      receipts[idx].balanceStatus   = 'Just Cleared';
+      receipts[idx].pendingAmount   = 0;
+      receipts[idx].originalDueDate = receipts[idx].originalDueDate || receipts[idx].receiptDate;
+      receipts[idx].clearedDate     = paidDate;
+      receipts[idx].daysPendingWhenCleared = daysPending;
+      S('mam_receipts', receipts);
+    }
+  } else {
+    const idx = debits.findIndex(d=>d.id===id);
+    if(idx>=0){
+      debits[idx].status        = 'Paid';
+      debits[idx].amountPaid    = debits[idx].amount;
+      debits[idx].paymentMethod = paidMethod;
+      debits[idx].originalDueDate = debits[idx].originalDueDate || debits[idx].date;
+      debits[idx].clearedDate   = paidDate;
+      debits[idx].daysPendingWhenCleared = daysPending;
+      S('mam_debits', debits);
+    }
+  }
+  closeModal('clear-modal');
+  renderDues();
+  if(document.getElementById('page-ledger').classList.contains('active')) renderLedger();
+  if(backupMeta.auto) triggerAutoBackup();
+  showToast(`✅ Marked paid! Was pending for ${daysPending} days.`);
+  curClearData = null;
+}
+
+function openReminder(jsonStr){
+  const x = JSON.parse(jsonStr);
+  curReminderData = x;
+  const days = daysSince(x._date);
+  const co = getActiveCo();
+  const msg = `Dear ${x._name||'Customer'},
+
+This is a friendly reminder regarding your pending payment of *₹${x._amount.toFixed(2)}*${x._service?' for '+x._service:''}${x._receiptNo?' (Receipt: '+x._receiptNo+')':''}.
+
+Amount has been pending for ${days} day${days!==1?'s':''} since ${x._date||'—'}.
+
+Kindly arrange the payment at your earliest convenience.
+
+JazakAllah Khair for your cooperation.
+
+— ${co.name}
+📞 ${co.mobile||''}`;
+  document.getElementById('reminder-preview').textContent = msg;
+  openModal('reminder-modal');
+}
+
+function reminderWA(){
+  if(!curReminderData) return;
+  const msg = document.getElementById('reminder-preview').textContent;
+  const num = (curReminderData._mobile||'').replace(/\D/g,'');
+  window.open((num?`https://wa.me/${num}`:'https://wa.me')+'?text='+encodeURIComponent(msg),'_blank');
+}
+function reminderSMS(){
+  if(!curReminderData) return;
+  const msg = document.getElementById('reminder-preview').textContent;
+  const num = (curReminderData._mobile||'').replace(/\D/g,'');
+  window.open(`sms:${num}?body=${encodeURIComponent(msg)}`);
+}
+function reminderCopy(){
+  const msg = document.getElementById('reminder-preview').textContent;
+  navigator.clipboard.writeText(msg).then(()=>showToast('📝 Reminder copied!')).catch(()=>{
+    const t=document.createElement('textarea'); t.value=msg; document.body.appendChild(t);
+    t.select(); document.execCommand('copy'); document.body.removeChild(t); showToast('📝 Copied!');
+  });
+}
+function reminderCall(){
+  if(!curReminderData || !curReminderData._mobile){ showToast('⚠️ No mobile number saved'); return; }
+  window.open(`tel:${curReminderData._mobile}`);
 }
 
 // ═══════════════════════════════════════
@@ -1449,6 +1825,102 @@ function clearAll(){
   if(!confirm('Delete EVERYTHING permanently? Cannot be undone!')) return;
   receipts=[]; debits=[]; localStorage.removeItem('mam_receipts'); localStorage.removeItem('mam_debits');
   renderAdmin(); showToast('🗑️ All data cleared');
+}
+
+// ═══════════════════════════════════════
+// CSV IMPORT — bulk historical data (Jan 2025 onward etc.)
+// ═══════════════════════════════════════
+let parsedImportRows = [];
+
+function downloadImportTemplate(){
+  const csv = 'Customer Name,Mobile,Service/Room,Amount,Date (YYYY-MM-DD),Status (Paid/Pending),Payment Method\n'
+    + 'Rahul Kumar,9876543210,Room Rent,1500,2025-01-15,Paid,Cash\n'
+    + 'Aslam Sheikh,9123456780,Room Rent,1500,2025-02-15,Pending,\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='Import_Template.csv'; a.click();
+  showToast('📄 Template downloaded!');
+}
+
+function parseCSVLine(line){
+  // Simple CSV parser handling quoted commas
+  const result=[]; let cur=''; let inQuotes=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){ inQuotes=!inQuotes; }
+    else if(c===','&&!inQuotes){ result.push(cur.trim()); cur=''; }
+    else cur+=c;
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function previewImportCSV(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').map(l=>l.trim()).filter(l=>l);
+    if(lines.length<2){ showToast('⚠️ CSV appears empty'); return; }
+    const dataLines = lines.slice(1); // skip header
+    parsedImportRows = dataLines.map(line=>{
+      const cols = parseCSVLine(line);
+      return {
+        name: cols[0]||'', mobile: cols[1]||'', service: cols[2]||'Room Rent',
+        amount: parseFloat(cols[3])||0, date: cols[4]||new Date().toISOString().split('T')[0],
+        status: (cols[5]||'Paid').trim(), method: cols[6]||'Cash'
+      };
+    }).filter(r=>r.name && r.amount>0);
+
+    document.getElementById('import-count').textContent = `(${parsedImportRows.length} records found)`;
+    document.getElementById('import-preview-list').innerHTML = parsedImportRows.slice(0,50).map(r=>{
+      const isPending = r.status.toLowerCase().includes('pending');
+      return `<div class="srow"><span>${r.name} · ${r.date}</span><span class="fw7 ${isPending?'tr':'tg'}">₹${r.amount.toFixed(2)} ${isPending?'(Pending)':'(Paid)'}</span></div>`;
+    }).join('') + (parsedImportRows.length>50?`<div class="tm" style="padding:8px 0;font-size:.8rem">...and ${parsedImportRows.length-50} more</div>`:'');
+    document.getElementById('import-preview-box').classList.remove('hidden');
+  };
+  reader.readAsText(file);
+}
+
+function confirmImportCSV(){
+  if(!parsedImportRows.length){ showToast('⚠️ No data to import'); return; }
+  if(!confirm(`Import ${parsedImportRows.length} records as receipts? This will add them to your history.`)) return;
+  const co = getActiveCo();
+  let imported = 0;
+  parsedImportRows.forEach((r,i)=>{
+    const isPending = r.status.toLowerCase().includes('pending');
+    const receiptNo = recSettings.prefix + (recSettings.next + i);
+    const dateStr = r.date ? new Date(r.date).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '';
+    const W=42,L='─'.repeat(W),D='═'.repeat(W);
+    let t = D+'\n'+ctr(co.name.toUpperCase(),W)+'\n';
+    if(co.tagline) t+=ctr(co.tagline,W)+'\n';
+    t+=ctr(co.mobile||'',W)+'\n'+D+'\n';
+    t+=ctr(isPending?'PAYMENT DUE NOTICE':'PAYMENT RECEIPT',W)+'\n'+L+'\n';
+    t+='Receipt No : '+receiptNo+'\nDate       : '+dateStr+'\n'+L+'\n';
+    t+='CUSTOMER DETAILS\nName       : '+r.name+'\n';
+    if(r.mobile) t+='Mobile     : '+r.mobile+'\n';
+    t+=L+'\nSERVICE DETAILS\nService    : '+r.service+'\n'+L+'\n';
+    t+='PAYMENT DETAILS\nMethod     : '+(isPending?'Pending':r.method)+'\n'+L+'\n';
+    t+=(isPending?'AMOUNT DUE  : ':'AMOUNT PAID : ')+'₹'+r.amount.toFixed(2)+'\n'+L+'\n';
+    t+=ctr(isPending?'Kindly clear the due amount at the earliest.':(co.footer||'Thank you!'),W)+'\n'+D+'\n';
+
+    receipts.unshift({
+      id:'imp'+Date.now()+i, coId:activeCo, coName:co.name, receiptNo,
+      shopName:co.name, shopMobile:co.mobile, shopAddress:co.address, shopEmail:co.email||'',
+      custName:r.name, custMobile:r.mobile, custEmail:'', custAddress:'',
+      serviceType:r.service, amount:r.amount, description:'', receiptDate:r.date, receiptTime:'',
+      paymentMethod: isPending?'Pending':r.method, upiTxn:'', chequeNo:'',
+      balanceStatus:'No Balance', pendingAmount:0, pendingMonths:'', selectedMonths:[],
+      receiptText:t, savedAt:new Date().toISOString(), type:'credit', imported:true
+    });
+    imported++;
+  });
+  recSettings.next += parsedImportRows.length;
+  S('mam_receipts', receipts); S('mam_recset', recSettings);
+  parsedImportRows = [];
+  document.getElementById('import-preview-box').classList.add('hidden');
+  document.getElementById('import-csv-file').value='';
+  updateDuesBadge();
+  showToast(`✅ Imported ${imported} records successfully!`);
 }
 
 // ═══════════════════════════════════════
@@ -1755,7 +2227,7 @@ const BUILTIN_TEMPLATES = [
 {{CENTER:{{SHOP_EMAIL}}}}
 {{CENTER:{{SHOP_ADDRESS}}}}
 {{DIVIDER_DOUBLE}}
-{{CENTER:PAYMENT RECEIPT}}
+{{CENTER:{{RECEIPT_TITLE}}}}
 {{DIVIDER}}
 Receipt No : {{RECEIPT_NO}}
 Date       : {{DATE}}  {{TIME}}
@@ -1774,7 +2246,8 @@ PAYMENT
 Method     : {{PAYMENT_METHOD}}
 Txn ID     : {{UPI_TXN}}
 {{DIVIDER}}
-AMOUNT PAID : ₹{{AMOUNT}}
+{{AMOUNT_LABEL}} : ₹{{AMOUNT}}
+{{STATUS_NOTE}}
 {{DIVIDER}}
 {{CENTER:{{FOOTER}}}}
 {{DIVIDER_DOUBLE}}`
@@ -1804,7 +2277,8 @@ AMOUNT PAID : ₹{{AMOUNT}}
   💳 {{PAYMENT_METHOD}}  {{UPI_TXN}}
 
   ┌─────────────────────────────────────┐
-  │  TOTAL PAID    ►  ₹{{AMOUNT}}
+  │  {{AMOUNT_LABEL}}    ►  ₹{{AMOUNT}}
+  {{STATUS_NOTE}}
   └─────────────────────────────────────┘
 
   {{FOOTER}}
@@ -1823,7 +2297,7 @@ Customer: {{CUST_NAME}}
 Mobile:   {{CUST_MOBILE}}
 --------------------------------
 Service:  {{SERVICE}}
-Amount:   Rs.{{AMOUNT}}
+{{AMOUNT_LABEL}}: Rs.{{AMOUNT}}
 Payment:  {{PAYMENT_METHOD}}
 --------------------------------
 {{FOOTER}}`
@@ -1848,7 +2322,8 @@ Mobile:  {{CUST_MOBILE}}
 {{DESCRIPTION}}
 ━━━━━━━━━━━━━━━━━━━━
 *💳 Payment:* {{PAYMENT_METHOD}}
-*✅ Amount Paid: ₹{{AMOUNT}}*
+*✅ {{AMOUNT_LABEL}}: ₹{{AMOUNT}}*
+{{STATUS_NOTE}}
 ━━━━━━━━━━━━━━━━━━━━
 _{{FOOTER}}_`
   },
@@ -1868,7 +2343,7 @@ MOB:  {{CUST_MOBILE}}
 {{SERVICE}}
 {{DESCRIPTION}}
 --------------------------------
-TOTAL:  Rs.{{AMOUNT}}
+{{AMOUNT_LABEL}}: Rs.{{AMOUNT}}
 METHOD: {{PAYMENT_METHOD}}
 ================================
 {{FOOTER}}
@@ -1908,6 +2383,11 @@ function fillTemplate(tplBody, r){
   t = t.replace(/\{\{CENTER_PAD:([^:]*):(\d+)\}\}/g, (m,txt,w)=>ctr(txt,parseInt(w)));
   t = t.replace(/\{\{DIVIDER_DOUBLE\}\}/g, '═'.repeat(W));
   t = t.replace(/\{\{DIVIDER\}\}/g, '─'.repeat(W));
+  const isPending = r.paymentMethod==='Pending';
+  const wasCleared = r.balanceStatus==='Just Cleared' && r.daysPendingWhenCleared;
+  let statusNote = '';
+  if(isPending) statusNote = '⚠️ PAYMENT NOT YET RECEIVED';
+  else if(wasCleared) statusNote = `(Paid after ${r.daysPendingWhenCleared} day${r.daysPendingWhenCleared!==1?'s':''} pending)`;
   const map = {
     '{{SHOP_NAME}}':       co.name||'',
     '{{SHOP_MOBILE}}':     r.shopMobile||co.mobile||'',
@@ -1924,9 +2404,12 @@ function fillTemplate(tplBody, r){
     '{{SERVICE}}':         r.serviceType||'',
     '{{DESCRIPTION}}':     r.description||'',
     '{{AMOUNT}}':          parseFloat(r.amount||0).toFixed(2),
+    '{{AMOUNT_LABEL}}':    isPending ? 'AMOUNT DUE' : 'AMOUNT PAID',
+    '{{STATUS_NOTE}}':     statusNote,
+    '{{RECEIPT_TITLE}}':   isPending ? 'PAYMENT DUE NOTICE' : 'PAYMENT RECEIPT',
     '{{PAYMENT_METHOD}}':  r.paymentMethod||'',
     '{{UPI_TXN}}':         r.upiTxn||'',
-    '{{FOOTER}}':          co.footer||'Thank you!'
+    '{{FOOTER}}':          isPending ? 'Kindly clear the due amount at the earliest.' : (co.footer||'Thank you!')
   };
   Object.entries(map).forEach(([k,v])=>{ t = t.split(k).join(v); });
   // Clean empty lines with just whitespace
