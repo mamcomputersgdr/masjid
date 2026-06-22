@@ -818,7 +818,7 @@ let companies   = J('mam_companies', [{
   footer:'Thank you for choosing us! Keep this receipt for your records.',
   color:'#1a237e'
 }]);
-let creds       = J('mam_creds',     {username:'admin',password:'admin123'});
+let creds       = {username:'admin',password:'admin123'};
 let recSettings = J('mam_recset',    {prefix:'REC-', next:1001});
 let backupMeta  = J('mam_backup',    {lastTime:null, auto:false});
 let activeCo    = companies[0]?.id || 'co1';
